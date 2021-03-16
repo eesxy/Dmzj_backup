@@ -11,13 +11,13 @@ dmzj备份——基于scrapy框架的爬虫练习项目
 需要scrapy, PyQuery, js2py库  
 
 ```bash
-$ pip3 install scrapy, PyQuery, js2py
+pip3 install scrapy, PyQuery, js2py
 ```
 
 自带库中需要re, os, json, logging, urllib, datetime
 
 ```bash
-$ pip3 install re, os, json, logging, urllib, datetime
+pip3 install re, os, json, logging, urllib, datetime
 ```
 
 ## 基本用法
@@ -27,36 +27,34 @@ $ pip3 install re, os, json, logging, urllib, datetime
 在命令行中转到项目目录，执行
 
 ```bash
-$ scrapy crawl Dmzj
+scrapy crawl Dmzj
 ```
 
 也可运行项目文件夹中的run.py来快速启动
 
 ## 进阶用法
 
-#### 暂停和恢复程序
+### 暂停和恢复程序
 
 scrapy库支持暂停和恢复程序，通过JOBDIR参数传递，例如，在启动时执行
 
 ```bash
-$ scrapy crawl Dmzj -s JOBDIR=jobs/test1
+scrapy crawl Dmzj -s JOBDIR=jobs/test1
 ```
 
 然后可以安全地停止程序(如ctrl+C或远程发送信号)，下一次启动时只需执行相同命令即可恢复请求队列
 
 ```bash
-$ scrapy crawl Dmzj -s JOBDIR=jobs/test1
+scrapy crawl Dmzj -s JOBDIR=jobs/test1
 ```
 
 详细用法参见[scrapy jobs](https://docs.scrapy.org/en/latest/topics/jobs.html)
 
-#### 设置代理
+### 设置代理
 
-middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENABLED** 和 **MY_PROXY** 设置即可通过单一代理进行访问，后续可能会添加代理池的实现
+middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENABLED** 和 **MY_PROXY** 设置即可通过单一代理进行访问，后续可能会添加代理池的实现。建议设置代理使用，以免影响对dmzj的正常访问
 
-本项目尚在测试阶段，建议设置代理使用，以免影响对dmzj的正常访问
-
-#### 快速更新书架
+### 快速更新书架
 
 第一次下载完成后，通过开启 **MY_UPDATE_MODE** 设置，爬虫将以更新模式运行，通过上一次保存的 *info.json* 文件进行更新章节的匹配，并忽略上次已经抓取的章节，有效提高第二次及之后运行的速度
 
@@ -89,4 +87,3 @@ middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENAB
 ## License
 
 MIT
-
