@@ -130,5 +130,6 @@ dmypy.json
 
 # myignore
 *.log
-downloads/
+download/
 jobs/
+Dmzj_backup/settings.py
