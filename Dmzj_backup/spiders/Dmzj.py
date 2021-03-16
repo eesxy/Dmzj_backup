@@ -66,6 +66,7 @@ class DmzjSpider(scrapy.Spider):
         data = {'nickname': MY_USERNAME,
                 'password': MY_PASSWORD, 'token': token, 'type': 0}
         self.logger.info('Try to login')
+        self.logger.debug('token: %s'%(token))
         response = session.post(
             url='https://i.dmzj.com/doLogin', data=data, headers=headers)
         dic = json.loads(response.text)
