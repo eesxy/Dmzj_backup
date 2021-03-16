@@ -98,7 +98,7 @@ LOG_LEVEL = logging.INFO
 # request失败后是否重试
 RETRY_ENABLED = True
 # request失败后重试的最大次数, 仅在设置了RETRY_ENABLED后有效
-RETRY_TIMES = 3
+RETRY_TIMES = 5
 # 需要重试的HTTP错误代码
 RETRY_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 408, 429]
 # 超时时间: 秒
@@ -117,6 +117,10 @@ TELNETCONSOLE_PASSWORD = 'dmzj'
 # Additional user settings
 # 用户设定
 
+# 用户名
+MY_USERNAME = 'username'
+# 密码
+MY_PASSWORD = 'password'
 # 启用后, 已经爬取过的章节在下一次运行时将被忽略(无论是否下载完毕)
 # 建议在第一次下载完成后启用, 以提高后续更新的效率
 MY_UPDATE_MODE = False

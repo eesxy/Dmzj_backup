@@ -22,7 +22,7 @@ $ pip3 install re, os, json, logging, urllib, datetime
 
 ## 基本用法
 
-自动登录模块尚未完成，需手动将 https://i.dmzj.com//subscribe 页面下载到subscribe文件夹中以解析书架
+修改settings.py中的MY_USERNAME, MY_PASSWORD为自己的用户名和密码
 
 在命令行中转到项目目录，执行
 
@@ -66,6 +66,7 @@ middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENAB
 
 在settings.py文件中修改设置，常用的设置如下
 
+- **MY_USERNAME, MY_PASSWORD :** 用户名和密码
 - **IMAGE_STORE :** 图片下载位置，默认为'./download'
 - **CONCURRENT_REQUESTS :** 并行下载线程数，默认为4，请勿设置过大
 - **DOWNLOAD_DELAY :**  两次请求间的延迟，为0时无延迟，请勿设置过小

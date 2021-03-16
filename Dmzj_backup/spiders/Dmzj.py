@@ -1,13 +1,15 @@
 import re
 import os
+import time
 import json
 import js2py
 import scrapy
 import logging
+import requests
 import urllib.parse
 from pyquery import PyQuery as pq
 from Dmzj_backup.items import ComicItem, ChapterItem, ImgItem, CoverItem
-from Dmzj_backup.settings import MY_UPDATE_MODE, IMAGES_STORE
+from Dmzj_backup.settings import MY_UPDATE_MODE, IMAGES_STORE, MY_USERNAME, MY_PASSWORD
 
 
 class DmzjSpider(scrapy.Spider):
@@ -27,7 +29,10 @@ class DmzjSpider(scrapy.Spider):
         logger.setLevel(logging.ERROR)
 
     def start_requests(self):
-        page = pq(filename='./subscribe/我的订阅 - 动漫之家.html')
+        response = self.login()
+        if response == None:
+            return
+        page = pq(response.text)
         raw_url_list = page('.dy_r > h3 > a').items()
 
         comic_list = []
@@ -37,6 +42,7 @@ class DmzjSpider(scrapy.Spider):
                          (len(comic_list)))
 
         for url in comic_list:
+            url = re.sub(r'\s+', '', url)
             host = re.sub(r'(http://|https://)', '', url).split('/')[0]
             if host == 'www.dmzj.com':
                 yield scrapy.FormRequest(url, callback=self.parse_original_comic)
@@ -44,6 +50,36 @@ class DmzjSpider(scrapy.Spider):
                 yield scrapy.FormRequest(url, callback=self.parse_comic)
             else:
                 raise NotImplementedError
+
+    def login(self):
+        headers = {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-encoding': 'gzip, deflate, br',
+            'accept-language': 'zh-CN,zh;q=0.9',
+        }
+
+        session = requests.session()
+        response = session.get(url='https://i.dmzj.com/login', headers=headers)
+        doc = pq(response.text)
+        token = doc('.land_form.autoHeight form input').attr('value')
+        data = {'nickname': MY_USERNAME,
+                'password': MY_PASSWORD, 'token': token, 'type': 0}
+        self.logger.info('Try to login')
+        response = session.post(
+            url='https://i.dmzj.com/doLogin', data=data, headers=headers)
+        dic = json.loads(response.text)
+        if dic['code'] != 1000:
+            self.logger.error('Login failed: %d %s' %
+                              (dic['code'], dic['msg']))
+            session.close()
+            return None
+        data = {'page': 1, 'type_id': 1, 'letter_id': 0, 'read_id': 1}
+        response = session.post(
+            url='https://i.dmzj.com/ajax/my/subscribe', headers=headers, data=data)
+        self.logger.info('Login successful')
+        session.close()
+        return response
 
     def parse_comic(self, response):
         cover_url = response.css(
@@ -57,14 +93,16 @@ class DmzjSpider(scrapy.Spider):
         raw_url_list = response.css(
             '.cartoon_online_border > ul > li > a')
         for url in raw_url_list:
-            chapter_name = re.sub(r'(^\s*|\s*$|[/\?*:"<>|])', '', url.css('::text').get())
+            chapter_name = re.sub(
+                r'(^\s*|\s*$|[/\?*:"<>|])', '', url.css('::text').get())
             chapter_list.append(
                 (self.chapter_base_url+url.attrib['href'], chapter_name))
             record_chapter_list.append(chapter_name)
         raw_url_list = response.css(
             '.cartoon_online_border_other > ul > li > a')
         for url in raw_url_list:
-            chapter_name = re.sub(r'(^\s*|\s*$|[/\?*:"<>|])', '', url.css('::text').get())
+            chapter_name = re.sub(
+                r'(^\s*|\s*$|[/\?*:"<>|])', '', url.css('::text').get())
             chapter_list.append(
                 (self.chapter_base_url+url.attrib['href'], chapter_name))
             record_chapter_list.append(chapter_name)
@@ -96,7 +134,8 @@ class DmzjSpider(scrapy.Spider):
         raw_url_list = response.css(
             '.tab-content.zj_list_con.autoHeight > ul > li > a')
         for url in raw_url_list:
-            chapter_name = re.sub(r'(^\s*|\s*$|[/\?*:"<>|])', '',url.css('::text').get())
+            chapter_name = re.sub(
+                r'(^\s*|\s*$|[/\?*:"<>|])', '', url.css('::text').get())
             chapter_list.append(
                 (url.attrib['href'], chapter_name))
             record_chapter_list.append(chapter_name)
