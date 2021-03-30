@@ -8,10 +8,10 @@ dmzj备份——基于scrapy框架的爬虫练习项目
 
 ## 环境
 
-需要scrapy, PyQuery, js2py库  
+需要scrapy, js2py库  
 
 ```bash
-pip3 install scrapy, PyQuery, js2py
+pip3 install scrapy, js2py
 ```
 
 自带库中需要re, os, json, logging, urllib, datetime
@@ -58,7 +58,15 @@ middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENAB
 
 第一次下载完成后，通过开启 **MY_UPDATE_MODE** 设置，爬虫将以更新模式运行，通过上一次保存的 *info.json* 文件进行更新章节的匹配，并忽略上次已经抓取的章节，有效提高第二次及之后运行的速度
 
+更进一步，开启 **MY_ROUGH_UPDATE** 粗略更新模式后，爬虫将只比较订阅页面中的最新章节信息与本地是否一致，大大提高运行速度
+
 注意: 更新模式下将忽略已下载内容的完整性，若上一次下载未完成(例如通过ctrl+C中途退出)就开启更新模式将造成下载内容不完整。这是由于爬虫在成功抓取目录页后直接返回含有 *info.json* 信息的ComicItem，并未检查后续请求成功与否
+
+要避免这种情况，请完整运行第一次后开启此设置，并开启 **MY_RETRY** 模式重新进行第一次运行中意外失败的请求(如403或429等)。重试后可能仍出现404错误，但部分404是服务器资源缺失造成的，如果多次运行后重试列表仍未清空，可以手动删除 *error.json* 文件
+
+### 更新封面
+
+启用 **MY_COVER_UPDATE** 设置将重新请求各漫画的封面并覆盖本地封面，如果需要更新封面图，请开启此选项并关闭 **MY_ROUGH_UPDATE** 选项
 
 ## 设置
 
@@ -76,7 +84,10 @@ middlewares.py中实现了简单的proxy中间件，通过修改 **MY_PROXY_ENAB
 - **RETRY_TIMES :** 请求失败后的重试次数
 - **DOWNLOAD_TIMEOUT :** 请求超时时间
 - **TELNETCONSOLE_PORT, TELNETCONSOLE_USERNAME, TELNETCONSOLE_PASSWORD :** telnet控制台参数，详见[scrapy_telnet](https://docs.scrapy.org/en/latest/topics/telnetconsole.html)
+- **MY_ROUGH_UPDATE :** 以粗略检查模式运行，将覆盖更新模式和更新封面的设置
 - **MY_UPDATE_MODE :** 以更新模式运行，默认为False，建议第一次运行结束后开启
+- **MY_COVER_UPDATE :** 启用后会强制更新封面
+- **MY_RETRY :** 启用后会重试上一次失败的请求，不启用时失败请求也会记录，直到启用并运行一次后清空
 
 其余设置请谨慎修改，详见settings.py以及[scrapy_settings](https://docs.scrapy.org/en/latest/topics/settings.html)
 

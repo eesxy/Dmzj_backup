@@ -121,9 +121,16 @@ TELNETCONSOLE_PASSWORD = 'dmzj'
 MY_USERNAME = 'username'
 # 密码
 MY_PASSWORD = 'password'
+# 以下设置优先级: 粗略检查模式 > 更新模式 == 更新封面
+# 启用后，会开启粗略检查模式
+MY_ROUGH_UPDATE = False
 # 启用后, 已经爬取过的章节在下一次运行时将被忽略(无论是否下载完毕)
 # 建议在第一次下载完成后启用, 以提高后续更新的效率
 MY_UPDATE_MODE = False
+# 启用后会强制更新封面
+MY_COVER_UPDATE = False
+# 启用后会重试上一次失败的请求
+MY_RETRY = True
 # 启用后, 已存在的文件也将重复下载, 先于IMAGES_EXPIRES生效
 # 请选择其中之一使用(推荐设置为False以避免重复下载)
 MY_OVERWRITE_EXISTING_FILES = False

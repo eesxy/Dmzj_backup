@@ -132,4 +132,5 @@ dmypy.json
 *.log
 download/
 jobs/
-Dmzj_backup/settings.py
+Dmzj_backup/mysettings.py
+error.json
