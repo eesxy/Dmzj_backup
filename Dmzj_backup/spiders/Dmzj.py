@@ -73,7 +73,7 @@ class DmzjSpider(scrapy.Spider):
                               (dic['code'], dic['msg']))
             raise UserWarning
         data = {'page': '1', 'type_id': '1', 'letter_id': '0', 'read_id': '1'}
-        yield scrapy.FormRequest('https://i.dmzj.com/doLogin', callback=self.start_parse,
+        yield scrapy.FormRequest('https://i.dmzj.com/ajax/my/subscribe', callback=self.start_parse,
                                  formdata=data, meta={'cookiejar': response.meta['cookiejar']})
 
     def start_parse(self, response):
