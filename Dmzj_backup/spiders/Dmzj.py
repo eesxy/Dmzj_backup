@@ -60,7 +60,8 @@ class DmzjSpider(scrapy.Spider):
         token = response.css(
             '.land_form.autoHeight > form > input::attr(value)').get()
         data = {'nickname': self.mysettings.MY_USERNAME,
-                'password': self.mysettings.MY_PASSWORD, 'token': token, 'type': '0'}
+                'password': self.mysettings.MY_PASSWORD, 'token': token, 'type': '0',
+                'to': 'https://i.dmzj.com'}
         self.logger.info('Try to login')
         self.logger.debug('token: %s' % (token))
         yield scrapy.FormRequest('https://i.dmzj.com/doLogin', callback=self.get_subscribe,
