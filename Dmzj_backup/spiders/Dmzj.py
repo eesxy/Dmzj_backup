@@ -37,7 +37,7 @@ class DmzjSpider(scrapy.Spider):
     name = 'Dmzj'
     image_base_url = 'https://images.dmzj.com/'
     chapter_base_url = 'http://manhua.dmzj.com'
-    original_image_base_url = 'https://images.dmzj1.com/'
+    original_image_base_url = 'https://images.dmzj.com/'
 
     def __init__(self):
         logger = logging.getLogger()
