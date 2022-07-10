@@ -4,7 +4,7 @@ import scrapy
 import logging
 from itemadapter import ItemAdapter
 from scrapy.exceptions import DropItem
-from scrapy.pipelines.images import ImagesPipeline
+from scrapy.pipelines.files import FilesPipeline
 from Dmzj_backup.items import ComicItem, ChapterItem, ImgItem, CoverItem
 
 
@@ -56,7 +56,7 @@ class ComicPipeline:
         return item
 
 
-class ImgPipeline(ImagesPipeline):
+class ImgPipeline(FilesPipeline):
     def file_path(self, request, response=None, info=None, *, item=None):
         return '%s/%s/%s' % (item['comic_name'], item['chapter_name'], item['img_name'])
 
@@ -76,7 +76,7 @@ class ImgPipeline(ImagesPipeline):
         return item
 
 
-class CoverPipeline(ImagesPipeline):
+class CoverPipeline(FilesPipeline):
     def file_path(self, request, response=None, info=None, *, item=None):
         return '%s/cover.jpg' % (item['comic_name'])
 

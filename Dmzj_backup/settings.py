@@ -88,7 +88,7 @@ ITEM_PIPELINES = {
 # 额外的scrapy settings, 可供修改
 
 # 下载位置
-IMAGES_STORE = './download'
+FILES_STORE = './download'
 # 并行下载线程数(请勿设置过大)
 CONCURRENT_REQUESTS = 4
 # 两次请求间的延迟, 为0时无延迟(请勿设置过小)
