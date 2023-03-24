@@ -84,7 +84,7 @@ class DmzjSpider(scrapy.Spider):
                 yield i
 
         info_dict = dict()
-        filename = os.path.join(self.mysettings.IMAGES_STORE, 'info.json')
+        filename = os.path.join(self.mysettings.FILES_STORE, 'info.json')
         if os.path.exists(filename) and self.mysettings.MY_ROUGH_UPDATE:
             with open(filename, 'r') as f:
                 info_dict = json.load(f)
@@ -188,7 +188,7 @@ class DmzjSpider(scrapy.Spider):
         if self.mysettings.MY_UPDATE_MODE:
             chapter_list = self.check_update(
                 comic_name, last_updated, chapter_list)
-            if self.mysettings.MY_COVER_UPDATE or not os.path.exists(os.path.join(self.mysettings.IMAGES_STORE, comic_name, 'cover.jpg')):
+            if self.mysettings.MY_COVER_UPDATE or not os.path.exists(os.path.join(self.mysettings.FILES_STORE, comic_name, 'cover.jpg')):
                 yield CoverItem(comic_name=comic_name, cover_url=cover_url)
         else:
             yield CoverItem(comic_name=comic_name, cover_url=cover_url)
@@ -220,7 +220,7 @@ class DmzjSpider(scrapy.Spider):
         if self.mysettings.MY_UPDATE_MODE:
             chapter_list = self.check_update(
                 comic_name, last_updated, chapter_list)
-            if not os.path.exists(os.path.join(self.mysettings.IMAGES_STORE, comic_name, 'cover.jpg')):
+            if not os.path.exists(os.path.join(self.mysettings.FILES_STORE, comic_name, 'cover.jpg')):
                 yield CoverItem(comic_name=comic_name, cover_url=cover_url)
         else:
             yield CoverItem(comic_name=comic_name, cover_url=cover_url)
@@ -244,7 +244,7 @@ class DmzjSpider(scrapy.Spider):
 
     def check_update(self, comic_name, last_updated, chapter_list):
         filename = os.path.join(
-            self.mysettings.IMAGES_STORE, comic_name, 'info.json')
+            self.mysettings.FILES_STORE, comic_name, 'info.json')
         if not os.path.exists(filename):
             self.logger.info('New comic: %s' % (comic_name))
             return chapter_list

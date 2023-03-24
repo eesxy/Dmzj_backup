@@ -30,11 +30,11 @@ class DmzjBackupPipeline:
         if spider.mysettings.MY_OVERWRITE_EXISTING_FILES:
             return item
         elif isinstance(item, CoverItem):
-            if os.path.exists(os.path.join(spider.mysettings.IMAGES_STORE, item['comic_name'], 'cover.jpg')):
+            if os.path.exists(os.path.join(spider.mysettings.FILES_STORE, item['comic_name'], 'cover.jpg')):
                 logging.info('Cover exists: %s' % (item['comic_name']))
                 raise DropItem
         elif isinstance(item, ImgItem):
-            if os.path.exists(os.path.join(spider.mysettings.IMAGES_STORE, item['comic_name'], item['chapter_name'], item['img_name'])):
+            if os.path.exists(os.path.join(spider.mysettings.FILES_STORE, item['comic_name'], item['chapter_name'], item['img_name'])):
                 logging.info('Image exists: %s in %s %s' % (
                     item['img_name'], item['comic_name'], item['chapter_name']))
                 raise DropItem
@@ -45,7 +45,7 @@ class ComicPipeline:
     def process_item(self, item, spider):
         if isinstance(item, ComicItem):
             filename = os.path.join(
-                spider.mysettings.IMAGES_STORE, item['comic_name'], 'info.json')
+                spider.mysettings.FILES_STORE, item['comic_name'], 'info.json')
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
             info_dict = dict(comic_name=item['comic_name'],
