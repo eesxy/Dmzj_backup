@@ -30,7 +30,7 @@ class DmzjBackupPipeline:
         if spider.mysettings.MY_OVERWRITE_EXISTING_FILES:
             return item
         elif isinstance(item, CoverItem):
-            if os.path.exists(os.path.join(spider.mysettings.FILES_STORE, item['comic_name'], 'cover.jpg')):
+            if (not spider.mysettings.MY_COVER_UPDATE) and os.path.exists(os.path.join(spider.mysettings.FILES_STORE, item['comic_name'], 'cover.jpg')):
                 logging.info('Cover exists: %s' % (item['comic_name']))
                 raise DropItem
         elif isinstance(item, ImgItem):
@@ -62,7 +62,7 @@ class ImgPipeline(FilesPipeline):
 
     def get_media_requests(self, item, info):
         if isinstance(item, ImgItem):
-            yield scrapy.FormRequest(item['img_url'], headers={'Host': 'images.dmzj.com', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'})
+            yield scrapy.FormRequest(item['img_url'], headers={'Host': 'images.idmzj.com', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'})
 
     def item_completed(self, results, item, info):
         if isinstance(item, ImgItem):
@@ -82,7 +82,7 @@ class CoverPipeline(FilesPipeline):
 
     def get_media_requests(self, item, info):
         if isinstance(item, CoverItem):
-            yield scrapy.FormRequest(item['cover_url'], headers={'Host': 'images.dmzj.com', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'})
+            yield scrapy.FormRequest(item['cover_url'], headers={'Host': 'images.idmzj.com', 'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'})
 
     def item_completed(self, results, item, info):
         if isinstance(item, CoverItem):

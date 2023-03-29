@@ -35,9 +35,9 @@ def err_ls(dic):
 
 class DmzjSpider(scrapy.Spider):
     name = 'Dmzj'
-    image_base_url = 'https://images.dmzj.com/'
-    chapter_base_url = 'http://manhua.dmzj.com'
-    original_image_base_url = 'https://images.dmzj.com/'
+    image_base_url = 'https://images.idmzj.com/'
+    chapter_base_url = 'http://manhua.idmzj.com'
+    original_image_base_url = 'https://images.idmzj.com/'
 
     def __init__(self):
         logger = logging.getLogger()
@@ -54,17 +54,17 @@ class DmzjSpider(scrapy.Spider):
         self.mysettings = importlib.import_module(setting)
 
     def start_requests(self):
-        yield scrapy.Request('https://i.dmzj.com/login', callback=self.start_login, meta={'cookiejar': 0})
+        yield scrapy.Request('https://i.idmzj.com/login', callback=self.start_login, meta={'cookiejar': 0})
 
     def start_login(self, response):
         token = response.css(
             '.land_form.autoHeight > form > input::attr(value)').get()
         data = {'nickname': self.mysettings.MY_USERNAME,
                 'password': self.mysettings.MY_PASSWORD, 'token': token, 'type': '0',
-                'to': 'https://i.dmzj.com'}
+                'to': 'https://i.idmzj.com'}
         self.logger.info('Try to login')
         self.logger.debug('token: %s' % (token))
-        yield scrapy.FormRequest('https://i.dmzj.com/doLogin', callback=self.get_subscribe,
+        yield scrapy.FormRequest('https://i.idmzj.com/doLogin', callback=self.get_subscribe,
                                  formdata=data, meta={'cookiejar': response.meta['cookiejar']})
 
     def get_subscribe(self, response):
@@ -74,7 +74,7 @@ class DmzjSpider(scrapy.Spider):
                               (dic['code'], dic['msg']))
             raise UserWarning
         data = {'page': '1', 'type_id': '1', 'letter_id': '0', 'read_id': '1'}
-        yield scrapy.FormRequest('https://i.dmzj.com/ajax/my/subscribe', callback=self.start_parse,
+        yield scrapy.FormRequest('https://i.idmzj.com/ajax/my/subscribe', callback=self.start_parse,
                                  formdata=data, meta={'cookiejar': response.meta['cookiejar']})
 
     def start_parse(self, response):
@@ -113,12 +113,12 @@ class DmzjSpider(scrapy.Spider):
         for url in comic_list:
             url = re.sub(r'\s+', '', url)
             host = re.sub(r'(http://|https://)', '', url).split('/')[0]
-            if host == 'www.dmzj.com':
+            if host == 'www.idmzj.com':
                 yield scrapy.Request(url, callback=self.parse_original_comic, errback=self.err_original_comic)
-            elif host == 'manhua.dmzj.com':
+            elif host == 'manhua.idmzj.com':
                 yield scrapy.Request(url, callback=self.parse_comic, errback=self.err_comic)
             else:
-                raise NotImplementedError
+                raise NotImplementedError(host)
 
     def retry(self):
         info_list = []
