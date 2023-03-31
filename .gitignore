@@ -130,7 +130,10 @@ dmypy.json
 
 # myignore
 *.log
+*.toml
+*.jpg
+*.jpeg
+*.png
 download/
 jobs/
 Dmzj_backup/mysettings.py
-error.json
