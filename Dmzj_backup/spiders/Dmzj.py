@@ -37,9 +37,9 @@ error_logger = ErrorLog()
 
 class DmzjSpider(scrapy.Spider):
     name = 'Dmzj'
-    login_domain = 'https://i.idmzj.com/'
-    image_domain = 'https://images.idmzj.com/'
-    comic_domain = 'https://manhua.idmzj.com/'
+    login_domain = 'https://i.dmzj.com/'
+    image_domain = 'https://images.dmzj.com/'
+    comic_domain = 'https://manhua.dmzj.com/'
 
     def __init__(self):
         logger = logging.getLogger()
@@ -98,7 +98,7 @@ class DmzjSpider(scrapy.Spider):
         self.info_lock.acquire()
         info_dict = {}
         filename = os.path.join(self.mysettings.FILES_STORE, 'info.toml')
-        if os.path.exists(filename) and self.mysettings.MY_ROUGH_UPDATE:
+        if os.path.exists(filename):
             info_dict = toml.load(filename)
 
         comic_list = []
@@ -109,7 +109,8 @@ class DmzjSpider(scrapy.Spider):
             last_update = url.css('p > em > a::text').get()
             last_update = safe_pathname(last_update)
             comic_url = url.css('h3 > a::attr(href)').get()
-            if comic_name in info_dict and info_dict[comic_name] == last_update:
+            if self.mysettings.MY_ROUGH_UPDATE and comic_name in info_dict and info_dict[
+                    comic_name] == last_update:
                 continue
             else:
                 info_dict[comic_name] = last_update
