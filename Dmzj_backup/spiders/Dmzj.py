@@ -58,6 +58,7 @@ class DmzjSpider(scrapy.Spider):
         if not os.path.exists('error.toml'):
             with open('error.toml', 'x'):
                 pass
+        self.user_id = None
         self.info_lock = threading.Lock()
 
     def start_requests(self):
@@ -82,6 +83,13 @@ class DmzjSpider(scrapy.Spider):
         if dic['code'] != 1000:
             self.logger.error('Login failed: %d %s' % (dic['code'], dic['msg']))
             raise UserWarning
+        if self.user_id is None:
+            cookies = response.headers.getlist('Set-Cookie')
+            for cookie in cookies:
+                cookie = cookie.decode('utf-8')
+                if 'my=' in cookie:
+                    self.user_id = re.search(r'my=(.*?)%7C', cookie).group(1)
+                    break
         data = {'page': '1', 'type_id': '1', 'letter_id': '0', 'read_id': '1'}
         yield scrapy.FormRequest(self.login_domain + 'ajax/my/subscribe',
                                  callback=self.parse_subscribe, formdata=data,
@@ -126,7 +134,11 @@ class DmzjSpider(scrapy.Spider):
             url = re.sub(r'\s+', '', url)
             domain = re.sub(r'(http://|https://)', '', url).split('/')[0]
             if domain == re.sub(r'(http://|https://)', '', self.comic_domain).split('/')[0]:
-                yield scrapy.Request(url, callback=self.parse_comic, errback=self.err_comic)
+                comic_py = url.split('/')[-1]
+                assert self.user_id is not None
+                fetch_url = self.comic_domain + 'api/v1/comic2/comic/detail?channel=pc&app_name=comic&version=1.0.0'
+                fetch_url += '&comic_py=' + comic_py + '&uid=' + self.user_id
+                yield scrapy.Request(fetch_url, callback=self.parse_comic, errback=self.err_comic)
             else:
                 self.logger.warning(f'Unsupported domain in URL {url}')
 
@@ -167,57 +179,59 @@ class DmzjSpider(scrapy.Spider):
         error_logger.err_ls(info_dict)
 
     def parse_comic(self, response):
-        cover_url = response.css('.anim_intro_ptext > a > img::attr(src)').get()
-        comic_name = response.css('h1::text').get()
-        comic_url = response.css('.anim_title_text > a::attr(href)').get()
-        last_updated = response.css('.update2::text').get()
+        data = json.loads(response.text)
+        comic_info = data['data']['comicInfo']
+        cover_url = comic_info['cover']
+        comic_name = comic_info['title']
+        comic_url = self.comic_domain + comic_info['comicPy']
+        last_updated = comic_info['lastUpdateChapterName']
         comic_name = safe_pathname(comic_name)
 
         # tachiyomi meta
-        authors, genre, status = '', [], 0
-        metas = response.css('.anim-main_list > table > tr')
-        for meta in metas:
-            meta_type = meta.css('th::text').get()
-            if meta_type == '作者：':
-                authors = meta.css('td > a::text').getall()
-                authors = ','.join(authors)
-            elif meta_type == '题材：':
-                genre = meta.css('td > a::text').getall()
-            elif meta_type == '状态：':
-                status_t = meta.css('td > a::text').get()
-                if status_t == '连载中': status = 1
-                elif status_t == '已完结': status = 2
-        description = response.css('.line_height_content::text').getall()
-        description = re.sub(r'\s', '', ''.join(description[:-1]))
+        authors, genre, status = [], [], 0
+        for author_dic in comic_info['authorsTagList']:
+            authors.append(author_dic['tagName'])
+        authors = ', '.join(authors)
+        for theme_dic in comic_info['themeTagList']:
+            genre.append(theme_dic['tagName'])
+        if comic_info['statusTagList'][0]['tagName'] == '连载中': status = 1
+        elif comic_info['statusTagList'][0]['tagName'] == '已完结': status = 2
+        description = comic_info['description']
         tachiyomi_meta = TachiyomiMeta(comic_name, authors, description, genre, status)
 
-        chapter_list = []
-        record_chapter_list = []
-        raw_url_list = response.css('.cartoon_online_border > ul > li > a')
-        for url in raw_url_list:
-            chapter_name = safe_pathname(url.css('::text').get())
-            chapter_list.append((self.comic_domain + url.attrib['href'], chapter_name))
-            record_chapter_list.append(chapter_name)
-        raw_url_list = response.css('.cartoon_online_border_other > ul > li > a')
-        for url in raw_url_list:
-            chapter_name = safe_pathname(url.css('::text').get())
-            chapter_list.append((self.comic_domain + url.attrib['href'], chapter_name))
-            record_chapter_list.append(chapter_name)
-        self.logger.info('Parsed comic: %s, found %d chapter(s)' % (comic_name, len(chapter_list)))
-
-        if self.mysettings.MY_UPDATE_MODE:
-            chapter_list = self.check_update(comic_name, last_updated, chapter_list)
-            if self.mysettings.MY_COVER_UPDATE or not os.path.exists(
-                    os.path.join(self.mysettings.FILES_STORE, comic_name, 'cover.jpg')):
-                yield CoverItem(comic_name=comic_name, cover_url=cover_url)
+        if comic_info['chapterList'] is None:
+            self.logger.warning('No chapter found in %s' % (comic_name))
         else:
-            yield CoverItem(comic_name=comic_name, cover_url=cover_url)
+            chapter_list = []
+            record_chapter_list = []
+            for dic in comic_info['chapterList']:
+                for chapter in dic['data']:
+                    chapter_name = safe_pathname(chapter['chapter_title'])
+                    fetch_url = self.comic_domain
+                    fetch_url += 'api/v1/comic2/chapter/detail?channel=pc&app_name=comic&version=1.0.0'
+                    fetch_url += '&comic_py=' + comic_info['comicPy'] + '&chapter_id=' + str(
+                        chapter['chapter_id'])
+                    fetch_url += '&uid=' + self.user_id
+                    chapter_list.append((fetch_url, chapter_name))
+                    record_chapter_list.append(chapter_name)
+            self.logger.info('Parsed comic: %s, found %d chapter(s)' %
+                             (comic_name, len(chapter_list)))
 
-        for chapter in chapter_list:
-            yield scrapy.Request(chapter[0], callback=self.parse_chapter, errback=self.err_chapter,
-                                 cb_kwargs=dict(comic_name=comic_name, chapter_name=chapter[1]))
-        yield ComicItem(comic_name=comic_name, comic_url=comic_url, tachiyomi_meta=tachiyomi_meta,
-                        last_updated=last_updated, chapter_list=record_chapter_list)
+            if self.mysettings.MY_UPDATE_MODE:
+                chapter_list = self.check_update(comic_name, last_updated, chapter_list)
+                if self.mysettings.MY_COVER_UPDATE or not os.path.exists(
+                        os.path.join(self.mysettings.FILES_STORE, comic_name, 'cover.jpg')):
+                    yield CoverItem(comic_name=comic_name, cover_url=cover_url)
+            else:
+                yield CoverItem(comic_name=comic_name, cover_url=cover_url)
+
+            for chapter in chapter_list:
+                yield scrapy.Request(chapter[0], callback=self.parse_chapter,
+                                     errback=self.err_chapter,
+                                     cb_kwargs=dict(comic_name=comic_name, chapter_name=chapter[1]))
+            yield ComicItem(comic_name=comic_name, comic_url=comic_url,
+                            tachiyomi_meta=tachiyomi_meta, last_updated=last_updated,
+                            chapter_list=record_chapter_list)
 
     def err_chapter(self, failure):
         request = failure.request
@@ -241,21 +255,18 @@ class DmzjSpider(scrapy.Spider):
             return update_list
 
     def parse_chapter(self, response, comic_name, chapter_name):
-        eval_script = response.css('head > script::text').re_first('eval(.*)')
-        eval_script = eval_script.replace('&lt;', '<').replace('&gt;', '>')
+        data = json.loads(response.text)
+        page_list = data['data']['chapterInfo']['page_url']
 
-        raw_url_list = js2py.eval_js('eval' + eval_script)
-        raw_url_list = re.sub(r'[\[\"\]]', '', raw_url_list).split(',')
-        img_list = []
-        for url in raw_url_list:
-            url = re.sub(r'^/+', '', url)
-            img_list.append(self.image_domain + url)
-
-        self.logger.info('Parsed chapter: %s %s, found %d image(s)' %
-                         (comic_name, chapter_name, len(img_list)))
-        for url in img_list:
-            yield ImgItem(comic_name=comic_name, chapter_name=chapter_name,
-                          img_name=urllib.parse.unquote(url.split('/')[-1], 'utf-8'), img_url=url)
+        if page_list is None:
+            self.logger.warning('No page found in %s %s' % (comic_name, chapter_name))
+        else:
+            self.logger.info('Parsed chapter: %s %s, found %d page(s)' %
+                             (comic_name, chapter_name, len(page_list)))
+            for page in page_list:
+                yield ImgItem(comic_name=comic_name, chapter_name=chapter_name,
+                              img_name=urllib.parse.unquote(page,
+                                                            'utf-8').split('/')[-1], img_url=page)
 
     def parse(self, response):
         raise NotImplementedError
