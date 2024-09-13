@@ -38,6 +38,7 @@ class ComicPipeline:
             if not os.path.exists(os.path.dirname(info_file)):
                 os.makedirs(os.path.dirname(info_file))
             info_dict = dict(comic_name=item['comic_name'], comic_url=item['comic_url'],
+                             status=item['tachiyomi_meta'].status,
                              last_updated=item['last_updated'], chapter_list=item['chapter_list'])
             jstr = json.dumps(item['tachiyomi_meta'].dump())
             with open(info_file, 'w') as f:

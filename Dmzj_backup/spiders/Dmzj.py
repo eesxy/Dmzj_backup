@@ -58,12 +58,10 @@ class DmzjSpider(scrapy.Spider):
         if not os.path.exists('error.toml'):
             with open('error.toml', 'x'):
                 pass
-        self.user_id = None
         self.info_lock = threading.Lock()
 
     def start_requests(self):
-        yield scrapy.Request(self.login_domain + 'login', callback=self.start_login,
-                             meta={'cookiejar': 0})
+        yield scrapy.Request(self.login_domain + 'login', callback=self.start_login)
 
     def start_login(self, response):
         token = response.css('.land_form.autoHeight > form > input::attr(value)').get()
@@ -76,31 +74,30 @@ class DmzjSpider(scrapy.Spider):
         self.logger.info('Try to login')
         self.logger.debug('token: %s' % (token))
         yield scrapy.FormRequest(self.login_domain + 'doLogin', callback=self.get_subscribe,
-                                 formdata=data, meta={'cookiejar': response.meta['cookiejar']})
+                                 formdata=data)
 
     def get_subscribe(self, response):
         dic = json.loads(response.text)
         if dic['code'] != 1000:
             self.logger.error('Login failed: %d %s' % (dic['code'], dic['msg']))
             raise UserWarning
-        if self.user_id is None:
-            cookies = response.headers.getlist('Set-Cookie')
-            for cookie in cookies:
-                cookie = cookie.decode('utf-8')
-                if 'my=' in cookie:
-                    self.user_id = re.search(r'my=(.*?)%7C', cookie).group(1)
-                    break
+        cookies = response.headers.getlist('Set-Cookie')
+        for cookie in cookies:
+            cookie = cookie.decode('utf-8')
+            if 'my=' in cookie:
+                user_id = re.search(r'my=(.*?)%7C', cookie).group(1)
+                break
         data = {'page': '1', 'type_id': '1', 'letter_id': '0', 'read_id': '1'}
         yield scrapy.FormRequest(self.login_domain + 'ajax/my/subscribe',
                                  callback=self.parse_subscribe, formdata=data,
-                                 cb_kwargs=dict(page=1),
-                                 meta={'cookiejar': response.meta['cookiejar']})
+                                 cb_kwargs=dict(page=1), meta={'user_id': user_id})
 
     def parse_subscribe(self, response, page):
+        user_id = response.request.meta['user_id']
         if page == 1:
             self.logger.info('Login successful')
             if self.mysettings.MY_RETRY:
-                for i in self.retry():
+                for i in self.retry(response):
                     yield i
 
         self.info_lock.acquire()
@@ -135,10 +132,10 @@ class DmzjSpider(scrapy.Spider):
             domain = re.sub(r'(http://|https://)', '', url).split('/')[0]
             if domain == re.sub(r'(http://|https://)', '', self.comic_domain).split('/')[0]:
                 comic_py = url.split('/')[-1]
-                assert self.user_id is not None
                 fetch_url = self.comic_domain + 'api/v1/comic2/comic/detail?channel=pc&app_name=comic&version=1.0.0'
-                fetch_url += '&comic_py=' + comic_py + '&uid=' + self.user_id
-                yield scrapy.Request(fetch_url, callback=self.parse_comic, errback=self.err_comic)
+                fetch_url += '&comic_py=' + comic_py + '&uid=' + user_id
+                yield scrapy.Request(fetch_url, callback=self.parse_comic, errback=self.err_comic,
+                                     meta={'user_id': user_id})
             else:
                 self.logger.warning(f'Unsupported domain in URL {url}')
 
@@ -147,10 +144,10 @@ class DmzjSpider(scrapy.Spider):
             data = {'page': str(page), 'type_id': '1', 'letter_id': '0', 'read_id': '1'}
             yield scrapy.FormRequest(self.login_domain + 'ajax/my/subscribe',
                                      callback=self.parse_subscribe, formdata=data,
-                                     cb_kwargs=dict(page=page),
-                                     meta={'cookiejar': response.meta['cookiejar']})
+                                     cb_kwargs=dict(page=page), meta={'user_id': user_id})
 
-    def retry(self):
+    def retry(self, response):
+        user_id = response.request.meta['user_id']
         info_list = []
         with open('error.toml', 'r+t') as f:
             data = toml.load('error.toml')
@@ -161,10 +158,12 @@ class DmzjSpider(scrapy.Spider):
         self.logger.info('Retry %d request(s)' % (len(info_list)))
         for req in info_list:
             if req['type'] == 'comic':
-                yield scrapy.Request(req['url'], callback=self.parse_comic, errback=self.err_comic)
+                yield scrapy.Request(req['url'], callback=self.parse_comic, errback=self.err_comic,
+                                     meta={'user_id': user_id})
             elif req['type'] == 'chapter':
                 yield scrapy.Request(req['url'], callback=self.parse_chapter,
-                                     errback=self.err_chapter, cb_kwargs=req['cb_kwargs'])
+                                     errback=self.err_chapter, cb_kwargs=req['cb_kwargs'],
+                                     meta={'user_id': user_id})
             elif req['type'] == 'img':
                 yield ImgItem(comic_name=req['comic_name'], chapter_name=req['chapter_name'],
                               img_name=req['img_name'], img_url=req['url'])
@@ -179,6 +178,7 @@ class DmzjSpider(scrapy.Spider):
         error_logger.err_ls(info_dict)
 
     def parse_comic(self, response):
+        user_id = response.request.meta['user_id']
         data = json.loads(response.text)
         comic_info = data['data']['comicInfo']
         cover_url = comic_info['cover']
@@ -205,15 +205,18 @@ class DmzjSpider(scrapy.Spider):
             chapter_list = []
             record_chapter_list = []
             for dic in comic_info['chapterList']:
+                record_chapter_sublist = []
                 for chapter in dic['data']:
                     chapter_name = safe_pathname(chapter['chapter_title'])
                     fetch_url = self.comic_domain
                     fetch_url += 'api/v1/comic2/chapter/detail?channel=pc&app_name=comic&version=1.0.0'
                     fetch_url += '&comic_py=' + comic_info['comicPy'] + '&chapter_id=' + str(
                         chapter['chapter_id'])
-                    fetch_url += '&uid=' + self.user_id
+                    fetch_url += '&uid=' + user_id
                     chapter_list.append((fetch_url, chapter_name))
-                    record_chapter_list.append(chapter_name)
+                    record_chapter_sublist.append(chapter_name)
+                record_chapter_sublist.reverse()
+                record_chapter_list += record_chapter_sublist
             self.logger.info('Parsed comic: %s, found %d chapter(s)' %
                              (comic_name, len(chapter_list)))
 
@@ -228,7 +231,8 @@ class DmzjSpider(scrapy.Spider):
             for chapter in chapter_list:
                 yield scrapy.Request(chapter[0], callback=self.parse_chapter,
                                      errback=self.err_chapter,
-                                     cb_kwargs=dict(comic_name=comic_name, chapter_name=chapter[1]))
+                                     cb_kwargs=dict(comic_name=comic_name, chapter_name=chapter[1]),
+                                     meta={'user_id': user_id})
             yield ComicItem(comic_name=comic_name, comic_url=comic_url,
                             tachiyomi_meta=tachiyomi_meta, last_updated=last_updated,
                             chapter_list=record_chapter_list)
@@ -239,13 +243,12 @@ class DmzjSpider(scrapy.Spider):
         error_logger.err_ls(info_dict)
 
     def check_update(self, comic_name, last_updated, chapter_list):
-        filename = os.path.join(self.mysettings.FILES_STORE, comic_name, 'info.toml')
-        if not os.path.exists(filename):
+        dir = os.path.join(self.mysettings.FILES_STORE, comic_name)
+        if not os.path.exists(dir):
             self.logger.info('New comic: %s' % (comic_name))
             return chapter_list
         else:
-            info_dict = toml.load(filename)
-            downloaded_chapter_list = info_dict['chapter_list']
+            downloaded_chapter_list = [d for d in os.listdir(dir) if os.path.isdir(os.path.join(dir, d))]
             update_list = []
             for chapter in chapter_list:
                 chapter_name = safe_pathname(chapter[1])
